@@ -3,6 +3,8 @@
 
 #include "GCS_Mavlink.h"
 
+float pos_yaw, pos_yaw_rate;
+
 void Copter::gcs_send_heartbeat(void)
 {
     gcs_send_message(MSG_HEARTBEAT);
@@ -1641,13 +1643,13 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
         bool pos_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE;
         bool vel_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE;
         bool acc_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE;
+        bool yaw_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
+        bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
 
         /*
          * for future use:
          * bool force           = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_FORCE;
-         * bool yaw_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
-         * bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
-         */
+        */
 
         // prepare position
         Vector3f pos_vector;
@@ -1681,6 +1683,15 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
             }
         }
 
+        // prepare yaw and yaw_rate
+        if (!yaw_rate_ignore){
+            // convert to dps
+            pos_yaw_rate = packet.yaw_rate / 3.14159 * 180;
+        } else {
+            // convert to deg
+            pos_yaw = packet.yaw / 3.14159 * 180;
+        }
+
         // send request
         if (!pos_ignore && !vel_ignore && acc_ignore) {
             copter.guided_set_destination_posvel(pos_vector, vel_vector);
@@ -1692,6 +1703,12 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
             }
         } else {
             result = MAV_RESULT_FAILED;
+        }
+        // send request of yaw and yaw_rate
+        if (!yaw_rate_ignore || !yaw_ignore){
+            copter.set_auto_yaw_look_at_heading(pos_yaw, pos_yaw_rate, 0, 0);
+        } else {
+            copter.set_auto_yaw_mode(copter.get_default_auto_yaw_mode(false));
         }
 
         break;
@@ -1719,13 +1736,13 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
         bool pos_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_POS_IGNORE;
         bool vel_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_VEL_IGNORE;
         bool acc_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_ACC_IGNORE;
+        bool yaw_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
+        bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
 
         /*
          * for future use:
          * bool force           = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_FORCE;
-         * bool yaw_ignore      = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_IGNORE;
-         * bool yaw_rate_ignore = packet.type_mask & MAVLINK_SET_POS_TYPE_MASK_YAW_RATE_IGNORE;
-         */
+        */
 
         Vector3f pos_ned;
 
@@ -1761,6 +1778,12 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
             pos_ned = copter.pv_location_to_vector(loc);
         }
 
+        if (!yaw_rate_ignore){
+            pos_yaw_rate = packet.yaw_rate / 3.14159 * 180;
+        } else {
+            pos_yaw = packet.yaw / 3.14159 * 180;
+        }
+
         if (!pos_ignore && !vel_ignore && acc_ignore) {
             copter.guided_set_destination_posvel(pos_ned, Vector3f(packet.vx * 100.0f, packet.vy * 100.0f, -packet.vz * 100.0f));
         } else if (pos_ignore && !vel_ignore && acc_ignore) {
@@ -1771,6 +1794,12 @@ void GCS_MAVLINK_Copter::handleMessage(mavlink_message_t* msg)
             }
         } else {
             result = MAV_RESULT_FAILED;
+        }
+
+        if (!yaw_rate_ignore || !yaw_ignore){
+            copter.set_auto_yaw_look_at_heading(pos_yaw, pos_yaw_rate, 0, 0);
+        } else {
+            copter.set_auto_yaw_mode(copter.get_default_auto_yaw_mode(false));
         }
 
         break;
