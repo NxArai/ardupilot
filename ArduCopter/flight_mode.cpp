@@ -1,7 +1,7 @@
 #include "Copter.h"
 
 /*
- * High level calls to set and update flight modes logic for individual
+ * High level calls to set and  flight modes logic for individual
  * flight modes is in control_acro.cpp, control_stabilize.cpp, etc
  */
 
@@ -107,6 +107,10 @@ bool Copter::set_mode(control_mode_t mode, mode_reason_t reason)
 
         case GUIDED_NOGPS:
             success = guided_nogps_init(ignore_checks);
+            break;
+
+        case FLYING_DISK:
+            success = flying_disk_init(ignore_checks);
             break;
 
         default:
@@ -244,6 +248,10 @@ void Copter::update_flight_mode()
 
         case GUIDED_NOGPS:
             guided_nogps_run();
+            break;
+
+        case FLYING_DISK:
+            flying_disk_run();
             break;
 
         default:
@@ -484,6 +492,9 @@ void Copter::print_flight_mode(AP_HAL::BetterStream *port, uint8_t mode)
         break;
     case GUIDED_NOGPS:
         port->printf("GUIDED_NOGPS");
+        break;
+    case FLYING_DISK:
+        port->printf("FLYING_DISK");
         break;
     default:
         port->printf("Mode(%u)", (unsigned)mode);
